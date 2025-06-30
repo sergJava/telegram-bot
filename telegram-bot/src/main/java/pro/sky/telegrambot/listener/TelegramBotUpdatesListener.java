@@ -41,32 +41,42 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     String messageText;
     Long chatId;
-    Pattern pattern = Pattern.compile("[(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})(\\s+)(.+)]");
-
+    Pattern pattern = Pattern.compile("^(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})\\s+(.+)$");
 
     @Override
     public int process(List<Update> updates) {
-        updates.forEach(update -> {
-            logger.info("Processing update: {}", update);
-            String text = update.message().text();
-            if (text.equals("/start")) {
+        for (Update update : updates) {
+            if (update.message() != null && update.message().text() != null) {
+                String text = update.message().text();
                 chatId = update.message().chat().id();
-                messageText = "Our bot welcomes you";
-                SendMessage message = new SendMessage(chatId, messageText);
-                telegramBot.execute(message);
+
+                if (text.equals("/start")) {
+                    messageText = "Привет! Я бот-напоминалка. Напиши мне сообщение в формате:\n" +
+                            "01.01.2025 18:30 Сделать домашку";
+                    telegramBot.execute(new SendMessage(chatId, messageText));
+                } else {
+                    Matcher matcher = pattern.matcher(text);
+                    if (matcher.matches()) {
+                        try {
+                            String timeString = matcher.group(1);
+                            messageText = matcher.group(2);
+                            System.out.println("Parsed: " + timeString + messageText);
+                            LocalDateTime notificationTime = LocalDateTime.parse(timeString, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+                            NotificationTask task = new NotificationTask(notificationTime, messageText, chatId);
+                            notificationTaskRepository.save(task);
+                            telegramBot.execute(new SendMessage(chatId, "Задача сохранена! Я напомню в указанное время."));
+                        } catch (Exception e) {
+                            telegramBot.execute(new SendMessage(chatId, "Ошибка при обработке даты. Убедись, что формат правильный: dd.MM.yyyy HH:mm"));
+                        }
+                    } else {
+                        telegramBot.execute(new SendMessage(chatId, "Неверный формат! Пример:\n01.01.2025 18:30 Сделать домашку"));
+                    }
+                }
             }
-            Matcher matcher = pattern.matcher(text);
-            if(matcher.matches()){
-                String timeString = matcher.group(1);
-                messageText = matcher.group(2);
-                chatId = update.message().chat().id();
-                LocalDateTime notificationTime = LocalDateTime.parse(timeString, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
-                NotificationTask notificationTask = new NotificationTask(notificationTime, messageText, chatId);
-                notificationTaskRepository.save(notificationTask);
-            }
-        });
+        }
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
+
 
     @Scheduled(cron = "0 0/1 * * * *")
     public void run(){

@@ -1,3 +1,4 @@
 /.idea/
 *.iml
 /__MACOSX/
+/telegram-bot/src/main/resources/application-local.properties

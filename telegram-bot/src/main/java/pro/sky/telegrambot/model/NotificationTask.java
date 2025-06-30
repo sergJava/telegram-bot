@@ -7,10 +7,10 @@ import java.time.LocalDateTime;
 @Table(name = "notification_task")
 public class NotificationTask {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Long chatId;
-    String messageText;
+    private String messageText;
     private LocalDateTime notification_time;
 
     public NotificationTask(){}
