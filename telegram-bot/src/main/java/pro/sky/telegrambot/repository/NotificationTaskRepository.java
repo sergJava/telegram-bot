@@ -10,9 +10,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface NotificationTaskRepository extends JpaRepository<NotificationTask, Long> {
-//    @Query(value = "SELECT * FROM notification_task WHERE notification_time >= :from AND notification_time < :to", nativeQuery = true)
-//    List<NotificationTask> findCurrentTasks(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
-
 
     @Query(value = "SELECT * FROM notification_task WHERE notification_time = :someTime", nativeQuery = true)
     List<NotificationTask> findCurrentTasks(@Param("someTime") LocalDateTime someTime);
