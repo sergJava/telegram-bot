@@ -15,6 +15,7 @@ import pro.sky.telegrambot.repository.NotificationTaskRepository;
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -39,12 +40,14 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         this.notificationTaskRepository = notificationTaskRepository;
     }
 
-    String messageText;
-    Long chatId;
-    Pattern pattern = Pattern.compile("^(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})\\s+(.+)$");
+    private static final Pattern pattern = Pattern.compile("^(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})\\s+(.+)$");
+
 
     @Override
     public int process(List<Update> updates) {
+        String messageText;
+        Long chatId;
+
         for (Update update : updates) {
             if (update.message() != null && update.message().text() != null) {
                 String text = update.message().text();
@@ -65,7 +68,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             NotificationTask task = new NotificationTask(notificationTime, messageText, chatId);
                             notificationTaskRepository.save(task);
                             telegramBot.execute(new SendMessage(chatId, "Задача сохранена! Я напомню в указанное время."));
-                        } catch (Exception e) {
+                        } catch (DateTimeParseException e) {
+                            logger.warn("ошибка при парсинге даты у пользователя {}, {}", chatId, e.getMessage());
                             telegramBot.execute(new SendMessage(chatId, "Ошибка при обработке даты. Убедись, что формат правильный: dd.MM.yyyy HH:mm"));
                         }
                     } else {
@@ -78,18 +82,6 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
 
 
-    @Scheduled(cron = "0 0/1 * * * *")
-    public void run(){
-        List<NotificationTask> currentTasks = choiceNotifications();
-        for (NotificationTask currentTask : currentTasks) {
-            SendMessage sendMessage = new SendMessage(currentTask.getChatId(), currentTask.getMessageText());
-            telegramBot.execute(sendMessage);
-        }
-    }
 
-    public List<NotificationTask> choiceNotifications(){
-        LocalDateTime currentTime = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
-        return notificationTaskRepository.findCurrentTasks(currentTime);
-    }
 
 }
